@@ -5,6 +5,40 @@ BACKEND="openai-chat"
 HOST="127.0.0.1"
 #HOST="10.103.10.74"
 PORT="5000"
+
+#!/bin/bash
+
+# 檢查 jq 是否存在
+if ! command -v jq &> /dev/null; then
+    echo "❗ jq 未安裝，正在進行安裝..."
+
+    # 檢查 OS 類型並選擇適當的套件管理器
+    if [ -f /etc/debian_version ]; then
+        echo "🔍 偵測到 Debian/Ubuntu 系統，使用 apt 安裝 jq..."
+        apt update && apt install -y jq
+    elif [ -f /etc/redhat-release ]; then
+        echo "🔍 偵測到 RHEL/CentOS 系統，使用 yum 安裝 jq..."
+        yum install -y epel-release && yum install -y jq
+    elif command -v apk &> /dev/null; then
+        echo "🔍 偵測到 Alpine Linux，使用 apk 安裝 jq..."
+        apk add --no-cache jq
+    else
+        echo "🚫 無法自動判斷套件管理器，請手動安裝 jq。"
+        exit 1
+    fi
+
+    # 再次檢查 jq 是否成功安裝
+    if command -v jq &> /dev/null; then
+        echo "✅ jq 安裝完成。"
+    else
+        echo "❌ jq 安裝失敗，請手動處理。"
+        exit 1
+    fi
+else
+    echo "✅ jq 已安裝：$(jq --version)"
+fi
+
+
 # 動態獲取 served-model-name
 response=$(curl -s http://${HOST}:${PORT}/v1/models)
 MODEL_NAME=$(echo "$response" | jq -r '.data[0].id')
@@ -25,7 +59,7 @@ echo "Image Height: $IM_HEIGHT"
 
 #RANDOM_INPUT_LEN="129024"
 # 動態獲取 max-model-len 並設置為 RANDOM_INPUT_LEN，並減去 2048
-MAX_MODEL_LEN=$(ps aux | grep -E "python3 -m (vllm|vllm_ocisext).entrypoints.openai.api_server" | grep -oP "(?<=--max-model-len )[^\s]+" | head -n 1)
+MAX_MODEL_LEN=$(ps aux | grep -E "python3 -m (vllm|vllm_ocisext).entrypoints.openai.api_server" | sed -n 's/.*--max-model-len[= ]\([0-9]\+\).*/\1/p' | head -n 1)
 
 # 檢查是否成功取得 MAX_MODEL_LEN 並進行減法操作
 if [ -z "$MAX_MODEL_LEN" ]; then
