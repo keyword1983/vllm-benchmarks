@@ -2,8 +2,7 @@
 
 
 1. 將目前目錄整包放到inference server 內
-2. 將要測試的model的 tokenizer.json 等json放入 fake_model 目錄下
-3. 執bash ./run_test.sh 用以測試text-only行為,執行bash ./run_vision_test.sh 用以測試vision行為
+2. 執bash ./run_test.sh 用以測試text-only行為,執行bash ./run_vision_test.sh 用以測試vision行為
 執行過程中會有 log 顯示結果, 可以看出各種統計的資訊:
 ============ Serving Benchmark Result ============
 Successful requests:                     1
@@ -35,12 +34,12 @@ P99 ITL (ms):                            43.52
 目前run_vision_test.sh 會根據目前model的啟動參數的max-model-lens 來決定最大的 input content長度.
 且動態產生指定尺寸的雜訊image來當輸入token測試, image的尺寸在測試的時候作為參數輸入bash ./run_vision_test.sh IM_WIDTH IM_HEIGHT , 預設為512, 512
 一共會跑兩種work load profile:
-1: input 長度為50 output長度為300  ,同時跑 8/16/32/64/128 個requests (模擬簡短問句但是較長的影像內容總結)
-2: input 長度為100 output長度為100  ,同時跑 1/8/16/32 個requests
+a: input 長度為50 output長度為300  ,同時跑 8/16/32/64/128 個requests (模擬簡短問句但是較長的影像內容總結)
+b: input 長度為100 output長度為100  ,同時跑 1/8/16/32 個requests
 
 
 
-4. 查看output 中的benchmark結果.
+3. 查看output 中的benchmark結果.
 
 output目錄中
 engine_params.txt 紀錄推論server的啟動參數
