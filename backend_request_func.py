@@ -26,6 +26,7 @@ class RequestFuncInput:
     logprobs: Optional[int] = None
     multi_modal_content: Optional[dict] = None
     ignore_eos: bool = False
+    stream: bool = False
 
 
 @dataclass
@@ -238,7 +239,7 @@ async def async_request_openai_completions(
             #"best_of": request_func_input.best_of,
             "max_tokens": request_func_input.output_len,
             #"logprobs": request_func_input.logprobs,
-            "stream": True,
+            "stream": request_func_input.stream,
             #"ignore_eos": request_func_input.ignore_eos,
             "ignore_eos": True,
         }
@@ -333,9 +334,9 @@ async def async_request_openai_chat_completions(
                 },
             ],
             "temperature": 0.0,
-            #"max_completion_tokens": request_func_input.output_len,
-            "max_tokens": request_func_input.output_len,
-            "stream": True,
+            "max_completion_tokens": request_func_input.output_len,
+            #"max_tokens": request_func_input.output_len,
+            "stream": request_func_input.stream,
             #"ignore_eos": request_func_input.ignore_eos,
             "ignore_eos": True,
             #"logprobs":0,"stream":True,"stream_options": {"include_usage": True}
@@ -353,52 +354,62 @@ async def async_request_openai_chat_completions(
         st = time.perf_counter()
         most_recent_timestamp = st
         try:
-            async with session.post(url=api_url, json=payload,
-                                    headers=headers) as response:
-                if response.status == 200:
-                   #print(response)
+            async with session.post(url=api_url, json=payload, headers=headers) as response:
+                if response.status != 200:
+                    output.error = response.reason or ""
+                    output.success = False
+                    return output
+
+                content_type = response.headers.get("Content-Type", "")
+                if "text/event-stream" in content_type:
+                    # --- Stream Mode ---
                     async for chunk_bytes in response.content:
                         chunk_bytes = chunk_bytes.strip()
                         if not chunk_bytes:
                             continue
-                        #print(chunk_bytes)
-                        chunk = remove_prefix(chunk_bytes.decode("utf-8"),
-                                              "data: ")
-                        #chunk = chunk_bytes.decode("utf-8").removeprefix(
-                        #    "data: ")
+
+                        chunk = chunk_bytes.decode("utf-8").removeprefix("data: ")
                         if chunk == "[DONE]":
-                            latency = time.perf_counter() - st
-                        else:
-                            timestamp = time.perf_counter()
-                            data = json.loads(chunk)
+                            break
 
-                            if(data["choices"]!=[]):
-                                delta = data["choices"][0]["delta"]
-                                if delta.get("content", None):
-                                    # First token
-                                    if ttft == 0.0:
-                                        ttft = time.perf_counter() - st
-                                        output.ttft = ttft
+                        data = json.loads(chunk)
+                        timestamp = time.perf_counter()
 
-                                    # Decoding phase
-                                    else:
-                                        output.itl.append(timestamp -
-                                                          most_recent_timestamp)
+                        if data.get("choices"):
+                            delta = data["choices"][0].get("delta", {})
+                            content = delta.get("content")
+                            if content:
+                                if ttft == 0.0:
+                                    ttft = timestamp - st
+                                    output.ttft = ttft
+                                else:
+                                    output.itl.append(timestamp - most_recent_timestamp)
 
-                                    generated_text += delta["content"]
-
+                                generated_text += content
                                 most_recent_timestamp = timestamp
 
-                    output.generated_text = generated_text
-                    output.success = True
-                    output.latency = latency
+                    output.latency = time.perf_counter() - st
                 else:
-                    output.error = response.reason or ""
-                    output.success = False
+                    # --- Non-Stream Mode ---
+                    data = await response.json()
+                    timestamp = time.perf_counter()
+                    choices = data.get("choices", [])
+                    if choices:
+                        message = choices[0].get("message", {})
+                        content = message.get("content")
+                        if content:
+                            generated_text = content
+                            output.ttft = timestamp - st
+                            output.itl = []  # no inter-token latency in non-stream
+                            output.latency = timestamp - st
+                            output.output_tokens = data.get("usage", {}).get("completion_tokens", 0)
+
+                output.generated_text = generated_text
+                output.success = True
+
         except Exception:
             output.success = False
-            exc_info = sys.exc_info()
-            output.error = "".join(traceback.format_exception(*exc_info))
+            output.error = "".join(traceback.format_exception(*sys.exc_info()))
 
     if pbar:
         pbar.update(1)

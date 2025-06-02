@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # 定义常量参数
-BACKEND="openai"
+BACKEND="openai-chat"
 HOST="127.0.0.1"
-PORT="5000"
+PORT="8000"
 
 #!/bin/bash
 
@@ -44,7 +44,7 @@ fi
 response=$(curl -s http://${HOST}:${PORT}/v1/models)
 MODEL_NAME=$(echo "$response" | jq -r '.data[0].id')
 TOKENIZER=$(echo "$response" | jq -r '.data[0].root')
-ENDPOINT="/v1/completions"
+ENDPOINT="/v1/chat/completions"
 DATASET_NAME="random"
 REQUEST_RATE="inf"
 #RANDOM_INPUT_LEN="129024"
@@ -82,33 +82,12 @@ ps aux | grep -E "python3 -m (vllm|vllm_ocisext).entrypoints.openai.api_server" 
 
 echo "參數已成功提取並保存到 params.txt 文件中。"
 
-# 定义不同的 --num-prompts 参数
-NUM_PROMPTS_LIST=(1 5 10)
 
-# 循环执行三次，每次使用不同的 --num-prompts
-for NUM_PROMPTS in "${NUM_PROMPTS_LIST[@]}"; do
 
-    RESULT_FILE="${MODEL_NAME}_${RANDOM_INPUT_LEN}-${RANDOM_OUTPUT_LEN}_${NUM_PROMPTS}.json"
-    echo "Running benchmark with --num-prompts=$NUM_PROMPTS"
-    python3 benchmark_serving.py --backend "$BACKEND" \
-                                 --host "$HOST" \
-                                 --port "$PORT" \
-                                 --model "$MODEL_NAME" \
-				 --tokenizer "$TOKENIZER" \
-                                 --endpoint "$ENDPOINT" \
-                                 --dataset-name "$DATASET_NAME" \
-                                 --request-rate "$REQUEST_RATE" \
-                                 --num-prompts "$NUM_PROMPTS" \
-                                 --random-input-len "$RANDOM_INPUT_LEN" \
-                                 --random-output-len "$RANDOM_OUTPUT_LEN" \
-    				 --save-result \
-				 --result-dir "output" \
-				 --result-filename "$RESULT_FILE"
-done
-
-NUM_PROMPTS_LIST=(32 64 128)
-RANDOM_INPUT_LEN="200"
-RANDOM_OUTPUT_LEN="250"
+REQUEST_RATE="5"
+NUM_PROMPTS_LIST=(1000)
+RANDOM_INPUT_LEN="150"
+RANDOM_OUTPUT_LEN="200"
 # 循环执行三次，每次使用不同的 --num-prompts
 for NUM_PROMPTS in "${NUM_PROMPTS_LIST[@]}"; do
 	
@@ -122,6 +101,7 @@ for NUM_PROMPTS in "${NUM_PROMPTS_LIST[@]}"; do
                                  --endpoint "$ENDPOINT" \
                                  --dataset-name "$DATASET_NAME" \
                                  --request-rate "$REQUEST_RATE" \
+				 --max-concurrency "$REQUEST_RATE" \
                                  --num-prompts "$NUM_PROMPTS" \
                                  --random-input-len "$RANDOM_INPUT_LEN" \
                                  --random-output-len "$RANDOM_OUTPUT_LEN" \
@@ -130,29 +110,6 @@ for NUM_PROMPTS in "${NUM_PROMPTS_LIST[@]}"; do
 				 --result-filename "$RESULT_FILE"
 done
 
-NUM_PROMPTS_LIST=(1 4 8 16 32)
-RANDOM_INPUT_LEN="100"
-RANDOM_OUTPUT_LEN="100"
-# 循环执行三次，每次使用不同的 --num-prompts
-for NUM_PROMPTS in "${NUM_PROMPTS_LIST[@]}"; do
-	
-    RESULT_FILE="${MODEL_NAME}_${RANDOM_INPUT_LEN}-${RANDOM_OUTPUT_LEN}_${NUM_PROMPTS}.json"
-    echo "Running benchmark with --num-prompts=$NUM_PROMPTS"
-    python3 benchmark_serving.py --backend "$BACKEND" \
-                                 --host "$HOST" \
-                                 --port "$PORT" \
-                                 --model "$MODEL_NAME" \
-				 --tokenizer "$TOKENIZER" \
-                                 --endpoint "$ENDPOINT" \
-                                 --dataset-name "$DATASET_NAME" \
-                                 --request-rate "$REQUEST_RATE" \
-                                 --num-prompts "$NUM_PROMPTS" \
-                                 --random-input-len "$RANDOM_INPUT_LEN" \
-                                 --random-output-len "$RANDOM_OUTPUT_LEN" \
-				 --save-result \
-				 --result-dir "output" \
-				 --result-filename "$RESULT_FILE"
-done
 
 
 # 將 After Benchmark 註解和 Memory-Usage 追加到 mem_usage 檔案中
