@@ -90,7 +90,7 @@ RANDOM_OUTPUT_LEN="200"
 # 循环执行三次，每次使用不同的 --num-prompts
 for NUM_PROMPTS in "${NUM_PROMPTS_LIST[@]}"; do
 	
-    RESULT_FILE="${MODEL_NAME}_${RANDOM_INPUT_LEN}-${RANDOM_OUTPUT_LEN}_${NUM_PROMPTS}.json"
+    RESULT_FILE="${MODEL_NAME}_${RANDOM_INPUT_LEN}-${RANDOM_OUTPUT_LEN}_${NUM_PROMPTS}_s.json"
     echo "Running benchmark with --num-prompts=$NUM_PROMPTS"
     python3 benchmark_serving.py --backend "$BACKEND" \
                                  --host "$HOST" \
@@ -116,7 +116,7 @@ RANDOM_OUTPUT_LEN="200"
 # 循环执行三次，每次使用不同的 --num-prompts
 for NUM_PROMPTS in "${NUM_PROMPTS_LIST[@]}"; do
 	
-    RESULT_FILE="${MODEL_NAME}_${RANDOM_INPUT_LEN}-${RANDOM_OUTPUT_LEN}_${NUM_PROMPTS}.json"
+    RESULT_FILE="${MODEL_NAME}_${RANDOM_INPUT_LEN}-${RANDOM_OUTPUT_LEN}_${NUM_PROMPTS}_s.json"
     echo "Running benchmark with --num-prompts=$NUM_PROMPTS"
     python3 benchmark_serving.py --backend "$BACKEND" \
                                  --host "$HOST" \
@@ -142,7 +142,7 @@ RANDOM_OUTPUT_LEN="200"
 # 循环执行三次，每次使用不同的 --num-prompts
 for NUM_PROMPTS in "${NUM_PROMPTS_LIST[@]}"; do
 	
-    RESULT_FILE="${MODEL_NAME}_${RANDOM_INPUT_LEN}-${RANDOM_OUTPUT_LEN}_${NUM_PROMPTS}.json"
+    RESULT_FILE="${MODEL_NAME}_${RANDOM_INPUT_LEN}-${RANDOM_OUTPUT_LEN}_${NUM_PROMPTS}_s.json"
     echo "Running benchmark with --num-prompts=$NUM_PROMPTS"
     python3 benchmark_serving.py --backend "$BACKEND" \
                                  --host "$HOST" \
