@@ -96,6 +96,7 @@ for NUM_PROMPTS in "${NUM_PROMPTS_LIST[@]}"; do
                                  --model "$MODEL_NAME" \
 				 --tokenizer "$TOKENIZER" \
                                  --endpoint "$ENDPOINT" \
+				 --stream \
                                  --dataset-name "$DATASET_NAME" \
                                  --request-rate "$REQUEST_RATE" \
                                  --num-prompts "$NUM_PROMPTS" \
@@ -106,7 +107,7 @@ for NUM_PROMPTS in "${NUM_PROMPTS_LIST[@]}"; do
 				 --result-filename "$RESULT_FILE"
 done
 
-NUM_PROMPTS_LIST=(32 64 128)
+NUM_PROMPTS_LIST=(8 16 32 64 128)
 RANDOM_INPUT_LEN="200"
 RANDOM_OUTPUT_LEN="250"
 # 循环执行三次，每次使用不同的 --num-prompts
@@ -120,6 +121,7 @@ for NUM_PROMPTS in "${NUM_PROMPTS_LIST[@]}"; do
                                  --model "$MODEL_NAME" \
 				 --tokenizer "$TOKENIZER" \
                                  --endpoint "$ENDPOINT" \
+				 --stream \
                                  --dataset-name "$DATASET_NAME" \
                                  --request-rate "$REQUEST_RATE" \
                                  --num-prompts "$NUM_PROMPTS" \
@@ -130,7 +132,7 @@ for NUM_PROMPTS in "${NUM_PROMPTS_LIST[@]}"; do
 				 --result-filename "$RESULT_FILE"
 done
 
-NUM_PROMPTS_LIST=(1 4 8 16 32)
+NUM_PROMPTS_LIST=(1 8 16 32)
 RANDOM_INPUT_LEN="100"
 RANDOM_OUTPUT_LEN="100"
 # 循环执行三次，每次使用不同的 --num-prompts
@@ -144,6 +146,7 @@ for NUM_PROMPTS in "${NUM_PROMPTS_LIST[@]}"; do
                                  --model "$MODEL_NAME" \
 				 --tokenizer "$TOKENIZER" \
                                  --endpoint "$ENDPOINT" \
+				 --stream \
                                  --dataset-name "$DATASET_NAME" \
                                  --request-rate "$REQUEST_RATE" \
                                  --num-prompts "$NUM_PROMPTS" \
