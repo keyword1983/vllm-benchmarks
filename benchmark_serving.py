@@ -333,6 +333,313 @@ def sample_random_requests(
     return input_requests
 
 
+async def sample_random_requests_with_engine_tokenization(
+    prefix_len: int,
+    input_len: int,
+    output_len: int,
+    num_prompts: int,
+    range_ratio: float,
+    tokenizer: PreTrainedTokenizerBase,
+    backend: str,
+    api_url: str,
+    model_id: str,
+) -> List[Tuple[str, int, int]]:
+    """
+    Generate random requests with specified token lengths.
+    Uses the inference engine's tokenization to ensure accurate token counts.
+    
+    This is useful when the benchmark API server is running separately from the inference engine
+    and may have a different tokenizer implementation.
+    
+    This implementation creates a single prompt of the exact target length and reuses it for all requests.
+    """
+    if backend not in ASYNC_REQUEST_FUNCS:
+        raise ValueError(f"Unknown backend: {backend}")
+    
+    request_func = ASYNC_REQUEST_FUNCS[backend]
+    
+    # Generate a base prompt that we'll use for all requests
+    base_prompt = "<a>"
+    
+    # Send a test request to get the token count for the base prompt
+    # We'll use non-streaming mode to get the token count from the usage information
+    test_input = RequestFuncInput(
+        model=model_id,
+        prompt=base_prompt,
+        api_url=api_url,
+        prompt_len=0,  # We don't know the actual prompt_len yet
+        output_len=1,  # Only need to generate one token
+        logprobs=None,
+        best_of=1,
+        ignore_eos=True,
+        stream=False  # Use non-streaming mode to get usage information
+    )
+    
+    # Send the test request
+    print("Sending test request to determine token count...")
+    test_output = await request_func(request_func_input=test_input)
+   
+    print(test_output)
+    # Get the token count from the response
+    # First try to get it from the API response
+    base_token_count = None
+    
+    # Check if the API response includes token count information
+    if hasattr(test_output, 'prompt_len') and test_output.prompt_len > 0:
+        base_token_count = test_output.prompt_len
+        print(f"Using token count from API: {base_token_count}")
+    else:
+        # Fall back to using the local tokenizer
+        base_token_count = len(tokenizer(base_prompt).input_ids)
+        print(f"API did not return token count, using local tokenizer: {base_token_count}")
+    
+    print(f"Base prompt '{base_prompt}' has {base_token_count} tokens")
+    
+    # Create a prompt that's exactly the target length
+    print(f"Creating a prompt with exactly {input_len} tokens...")
+    
+    # Start with the base prompt
+    current_prompt = base_prompt
+    current_token_count = base_token_count
+    
+    # Add more text until we reach the target length
+    # We'll use a binary search approach to get close to the target quickly
+    min_repeats = 1
+    max_repeats = input_len*2  # Arbitrary upper limit
+    current_repeats = 1
+    
+    # First, find a prompt that's longer than the target length
+    while current_token_count < input_len:
+        # Double the text until we exceed the target
+        current_repeats = min(current_repeats * 2, max_repeats)
+        current_prompt = base_prompt * current_repeats
+        
+        # Check token count with the inference engine
+        test_input.prompt = current_prompt
+        test_output = await request_func(request_func_input=test_input)
+        
+        if hasattr(test_output, 'prompt_len') and test_output.prompt_len > 0:
+            current_token_count = test_output.prompt_len
+        else:
+            # Fall back to local tokenizer
+            current_token_count = len(tokenizer(current_prompt).input_ids)
+        
+        if current_token_count >= input_len:
+            break
+    
+    # Fine-tune the length with binary search to get exactly the target length
+    if current_token_count > input_len:
+        max_repeats = current_repeats
+        while min_repeats < max_repeats - 1:
+            current_repeats = (min_repeats + max_repeats) // 2
+            current_prompt = base_prompt * current_repeats
+            
+            # Check token count
+            test_input.prompt = current_prompt
+            test_output = await request_func(request_func_input=test_input)
+            
+            if hasattr(test_output, 'prompt_len') and test_output.prompt_len > 0:
+                current_token_count = test_output.prompt_len
+            else:
+                current_token_count = len(tokenizer(current_prompt).input_ids)
+            
+            if current_token_count < input_len:
+                min_repeats = current_repeats
+            else:
+                max_repeats = current_repeats
+    
+    # Now we have a prompt with approximately input_len tokens
+    final_prompt = current_prompt
+    final_token_count = current_token_count
+    
+    print(f"Created a prompt with {final_token_count} tokens (target was {input_len})")
+    
+    # Generate random requests, all using the same prompt
+    input_requests = []
+    for i in range(num_prompts):
+        # Only randomize the output length
+        target_output_len = np.random.randint(
+            int(output_len * range_ratio),
+            output_len + 1
+        )
+        
+        # Add the request using the same prompt for all requests
+        input_requests.append((final_prompt, final_token_count, target_output_len, None))
+        
+        if i % 100 == 0 and i > 0:
+            print(f"Prepared {i}/{num_prompts} requests")
+    
+    print(f"Prepared all {num_prompts} requests using the same prompt")
+    return input_requests
+
+async def sample_random_requests_with_engine_tokenization_dd(
+    prefix_len: int,
+    input_len: int,
+    output_len: int,
+    num_prompts: int,
+    range_ratio: float,
+    tokenizer: PreTrainedTokenizerBase,
+    backend: str,
+    api_url: str,
+    model_id: str,
+) -> List[Tuple[str, int, int]]:
+    """
+    Generate random requests with specified token lengths.
+    Uses the inference engine's tokenization to ensure accurate token counts.
+
+    This is useful when the benchmark API server is running separately from the inference engine
+    and may have a different tokenizer implementation.
+    """
+
+    print("frank!!!!!!!!!!")
+    if backend not in ASYNC_REQUEST_FUNCS:
+        raise ValueError(f"Unknown backend: {backend}")
+
+    request_func = ASYNC_REQUEST_FUNCS[backend]
+
+    # Generate a base prompt that we'll use for all requests
+    #base_prompt = "This is a test prompt for benchmarking."
+    base_prompt = "test"
+
+    # Send a test request to get the token count for the base prompt
+    test_input = RequestFuncInput(
+        model=model_id,
+        prompt=base_prompt,
+        api_url=api_url,
+        prompt_len=0,  # We don't know the actual prompt_len yet
+        output_len=1,  # Only need to generate one token
+        logprobs=None,
+        best_of=1,
+        ignore_eos=True,
+        stream=False
+    )
+
+    print(api_url)
+    # Send the test request
+    print("Sending test request to determine token count...")
+    test_output = await request_func(request_func_input=test_input)
+
+    # Get the token count from the response
+    # First try to get it from the API response
+    base_token_count = None
+
+    # Check if the API response includes token count information
+    if hasattr(test_output, 'prompt_len') and test_output.prompt_len > 0:
+        base_token_count = test_output.prompt_len
+    else:
+        # Fall back to using the local tokenizer
+        base_token_count = len(tokenizer(base_prompt).input_ids)
+
+    print(f"Base prompt '{base_prompt}' has {base_token_count} tokens")
+
+    # Calculate tokens per character ratio to estimate repetitions needed
+    chars_per_token = len(base_prompt) / base_token_count
+
+    # Generate random requests
+    input_requests = []
+    for i in range(num_prompts):
+        # Estimate how many repetitions we need to reach the target input length
+        target_input_len = np.random.randint(
+            int(input_len * range_ratio),
+            input_len + 1
+        )
+        target_output_len = np.random.randint(
+            int(output_len * range_ratio),
+            output_len + 1
+        )
+
+        # Start with the base prompt
+        current_prompt = base_prompt
+        current_token_count = base_token_count
+
+        # Add more text until we reach the target length
+        # We'll use a binary search approach to get close to the target quickly
+        min_repeats = 1
+        max_repeats = target_input_len*2  # Arbitrary upper limit
+        current_repeats = 1
+
+        while current_token_count < target_input_len:
+            print(current_token_count)
+            # Double the text until we exceed the target
+            current_prompt = base_prompt * current_repeats
+
+            # Check token count with the inference engine
+            test_input.prompt = current_prompt
+            test_output = await request_func(request_func_input=test_input)
+
+            print(test_output)
+            if hasattr(test_output, 'prompt_len') and test_output.prompt_len > 0:
+                current_token_count = test_output.prompt_len
+            else:
+                print("fall back")
+                # Fall back to local tokenizer
+                current_token_count = len(tokenizer(current_prompt).input_ids)
+
+            if current_token_count < target_input_len:
+                min_repeats = current_repeats
+                current_repeats = min(current_repeats * 2, max_repeats)
+            else:
+                break
+
+        # Fine-tune the length with binary search if we overshot
+        if current_token_count > target_input_len:
+            print(current_token_count)
+            max_repeats = current_repeats
+            while min_repeats < max_repeats - 1:
+                current_repeats = (min_repeats + max_repeats) // 2
+                current_prompt = base_prompt * current_repeats
+
+                # Check token count
+                test_input.prompt = current_prompt
+                test_output = await request_func(request_func_input=test_input)
+
+                if hasattr(test_output, 'prompt_len') and test_output.prompt_len > 0:
+                    current_token_count = test_output.prompt_len
+                else:
+                    current_token_count = len(tokenizer(current_prompt).input_ids)
+
+                if current_token_count < target_input_len:
+                    min_repeats = current_repeats
+                else:
+                    max_repeats = current_repeats
+
+        # Add the request to our list
+        input_requests.append((current_prompt, current_token_count, target_output_len, None))
+
+        if i % 10 == 0:
+            print(f"Prepared {i+1}/{num_prompts} requests")
+
+    return input_requests
+
+def sample_random_requests_with_engine_tokenization_sync(
+    prefix_len: int,
+    input_len: int,
+    output_len: int,
+    num_prompts: int,
+    range_ratio: float,
+    tokenizer: PreTrainedTokenizerBase,
+    backend: str,
+    api_url: str,
+    model_id: str,
+) -> List[Tuple[str, int, int]]:
+    """
+    Synchronous wrapper for sample_random_requests_with_engine_tokenization.
+    This function internally uses asyncio.run() to call the async function.
+    """
+    return asyncio.run(
+        sample_random_requests_with_engine_tokenization(
+            prefix_len=prefix_len,
+            input_len=input_len,
+            output_len=output_len,
+            num_prompts=num_prompts,
+            range_ratio=range_ratio,
+            tokenizer=tokenizer,
+            backend=backend,
+            api_url=api_url,
+            model_id=model_id,
+        )
+    )
+
 async def get_request(
     input_requests: List[Tuple[str, int, int]],
     request_rate: float,
@@ -814,6 +1121,18 @@ def main(args: argparse.Namespace):
             range_ratio=args.random_range_ratio,
             tokenizer=tokenizer,
         )
+    elif args.dataset_name == "random_plus":
+        input_requests = sample_random_requests_with_engine_tokenization_sync(
+            prefix_len=args.random_prefix_len,
+            input_len=args.random_input_len,
+            output_len=args.random_output_len,
+            num_prompts=args.num_prompts,
+            range_ratio=args.random_range_ratio,
+            tokenizer=tokenizer,
+            backend=backend,
+            api_url=api_url,
+            model_id=model_id,
+        )
 
     else:
         raise ValueError(f"Unknown dataset: {args.dataset_name}")
@@ -924,7 +1243,7 @@ if __name__ == "__main__":
         "--dataset-name",
         type=str,
         default="sharegpt",
-        choices=["sharegpt", "sonnet", "random", "hf", "ocisvision"],
+        choices=["sharegpt", "sonnet", "random","random_plus", "hf", "ocisvision"],
         help="Name of the dataset to benchmark on.",
     )
     parser.add_argument("--dataset-path",

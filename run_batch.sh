@@ -46,6 +46,7 @@ MODEL_NAME=$(echo "$response" | jq -r '.data[0].id')
 TOKENIZER=$(echo "$response" | jq -r '.data[0].root')
 ENDPOINT="/v1/chat/completions"
 DATASET_NAME="random"
+DATASET_NAME="random_plus"
 REQUEST_RATE="inf"
 #RANDOM_INPUT_LEN="129024"
 # 動態獲取 max-model-len 並設置為 RANDOM_INPUT_LEN，並減去 2048

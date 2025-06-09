@@ -267,6 +267,7 @@ async def async_request_openai_completions(
                             "data: ")
                         if chunk == "[DONE]":
                             latency = time.perf_counter() - st
+                            output.latency = latency
                         else:
                             data = json.loads(chunk)
 
@@ -290,7 +291,22 @@ async def async_request_openai_completions(
 
                     output.generated_text = generated_text
                     output.success = True
-                    output.latency = latency
+                    #output.latency = latency
+                    # Try to get the actual prompt token count from the response
+                    if not request_func_input.stream:
+                        # For non-streaming mode, we need to make another request to get the token count
+                        try:
+                            # Make a non-streaming request to get the usage information
+                            non_stream_payload = payload.copy()
+                            non_stream_payload["stream"] = False
+                            async with session.post(url=api_url, json=non_stream_payload, headers=headers) as usage_response:
+                                if usage_response.status == 200:
+                                    usage_data = await usage_response.json()
+                                    if "usage" in usage_data and "prompt_tokens" in usage_data["usage"]:
+                                        output.prompt_len = usage_data["usage"]["prompt_tokens"]
+                                        print(f"Got actual prompt token count from API: {output.prompt_len}")
+                        except Exception as e:
+                            print(f"Failed to get token count from API: {e}")
                 else:
                     output.error = response.reason or ""
                     output.success = False
@@ -339,6 +355,7 @@ async def async_request_openai_chat_completions(
             "stream": request_func_input.stream,
             #"ignore_eos": request_func_input.ignore_eos,
             "ignore_eos": True,
+            "stop": None,
             #"logprobs":0,"stream":True,"stream_options": {"include_usage": True}
         }
         headers = {
@@ -402,7 +419,13 @@ async def async_request_openai_chat_completions(
                             output.ttft = timestamp - st
                             output.itl = []  # no inter-token latency in non-stream
                             output.latency = timestamp - st
-                            output.output_tokens = data.get("usage", {}).get("completion_tokens", 0)
+                            #output.output_tokens = data.get("usage", {}).get("completion_tokens", 0)
+                            # Get token counts from usage information
+                            if "usage" in data:
+                                output.output_tokens = data["usage"].get("completion_tokens", 0)
+                                if "prompt_tokens" in data["usage"]:
+                                    output.prompt_len = data["usage"]["prompt_tokens"]
+                                    print(f"Got actual prompt token count from API: {output.prompt_len}")
 
                 output.generated_text = generated_text
                 output.success = True
