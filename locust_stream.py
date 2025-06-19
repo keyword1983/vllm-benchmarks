@@ -127,6 +127,7 @@ class LLMUser(HttpUser):
                         most_recent_timestamp = timestamp
 
                     if usage := data.get("usage"):
+                        output.input_tokens = usage.get("prompt_tokens")
                         output.output_tokens = usage.get("completion_tokens")
 
                 total_time = time.perf_counter() - st
@@ -161,7 +162,7 @@ class LLMUser(HttpUser):
 
                 # 累積 output tokens
                 with stats_lock:
-                    total_input_tokens += input_tokens 
+                    total_input_tokens += output.input_tokens 
                     total_output_tokens += output.output_tokens
                     num_requests += 1
                 response.success()
