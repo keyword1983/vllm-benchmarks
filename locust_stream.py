@@ -3,44 +3,91 @@ import time
 import uuid
 import json
 import threading
+from locust.argument_parser import LocustArgumentParser
+import os
+
+model_id = os.getenv("MODEL_ID", "vllm-gemma-3-27b-it")
 
 stats_lock = threading.Lock()
 total_input_tokens = 0
 total_output_tokens = 0
 num_requests = 0
 test_start_time = None
+shared_prompt = None
+input_tokens = 150
+max_tokens = 200
+
 
 class OutputStats:
     def __init__(self):
         self.ttft = 0.0
         self.itl = []
+        self.input_tokens = 0
         self.output_tokens = 0
 
 class LLMUser(HttpUser):
     wait_time = constant_pacing(200)
 
     def on_start(self):
-        global test_start_time
+        global test_start_time, shared_prompt
         if test_start_time is None:
             test_start_time = time.perf_counter()
 
+        if shared_prompt is None:
+            shared_prompt = self.find_prompt_for_token_count(input_tokens)
+
+    def find_prompt_for_token_count(self, target_tokens, max_iterations=10):
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer YOUR_API_KEY"
+        }
+
+        base_token = "<a>"
+        low = 1
+        high = target_tokens * 2
+        best_prompt = base_token
+        best_tokens = 0
+
+        for _ in range(max_iterations):
+            mid = (low + high) // 2
+            prompt = base_token * mid
+
+            payload = {
+                "model": model_id,
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": 0.0,
+                "max_tokens": 1,
+                "stream": False
+            }
+
+            response = self.client.post("/v1/chat/completions", json=payload, headers=headers, timeout=60)
+            data = response.json()
+            actual_tokens = data.get("usage", {}).get("prompt_tokens", 0)
+            print(actual_tokens)
+            if actual_tokens == target_tokens:
+                return prompt
+            elif actual_tokens < target_tokens:
+                low = mid + 1
+                best_prompt = prompt
+                best_tokens = actual_tokens
+            else:
+                high = mid - 1
+
+        return best_prompt
+
     @task
     def chat_completion(self):
-        global total_input_tokens, total_output_tokens, num_requests
+        global total_input_tokens, total_output_tokens, num_requests, shared_prompt
 
-        #prompt = "Explain the theory of relativity in simple terms."
-        prompt = "<a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a>"
-        input_tokens = 150
-        max_tokens = 200
+        prompt = shared_prompt
         request_id = str(uuid.uuid4())
 
         headers = {
             "Content-Type": "application/json",
             "Authorization": "Bearer YOUR_API_KEY"
         }
-
         payload = {
-            "model": "vllm-gemma-3-27b-it",
+            "model": model_id,
             "messages": [{"role": "user", "content": prompt}],
             "temperature": 0.0,
             "max_completion_tokens": max_tokens,
@@ -48,6 +95,7 @@ class LLMUser(HttpUser):
             "stream_options": {
                 "include_usage": True,
             },
+            "ignore_eos": True,
         }
 
         st = time.perf_counter()
@@ -128,7 +176,6 @@ class LLMUser(HttpUser):
                 context={"request_id": request_id}
             )
 
-
 @events.test_stop.add_listener
 def on_test_stop(environment, **kwargs):
     global test_start_time
@@ -137,7 +184,7 @@ def on_test_stop(environment, **kwargs):
 
     with stats_lock:
         if num_requests > 0:
-            avg_tokens_per_sec = (total_input_tokens+total_output_tokens) / total_time if total_time > 0 else 0
+            avg_tokens_per_sec = (total_input_tokens + total_output_tokens) / total_time if total_time > 0 else 0
             print(f"Test finished. Total requests: {num_requests}")
             print(f"Total input tokens: {total_input_tokens}")
             print(f"Total output tokens: {total_output_tokens}")
