@@ -37,6 +37,14 @@ else
     echo "✅ jq 已安裝：$(jq --version)"
 fi
 
+# 檢查 datasets 套件是否已安裝
+if ! python3 -c "import datasets" &> /dev/null; then
+    echo "'datasets' 套件未安裝，正在安裝..."
+    pip install datasets
+else
+    echo "'datasets' 套件已安裝。"
+fi
+
 
 # 動態獲取 served-model-name
 #MODEL_NAME=$(ps aux | grep -E "python3 -m (vllm|vllm_ocisext).entrypoints.openai.api_server"   | grep -oE -- '--served-model-name[= ]\S+'   | head -n1   | sed 's/--served-model-name[= ]//')
