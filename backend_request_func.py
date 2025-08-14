@@ -265,6 +265,7 @@ async def async_request_openai_completions(
 
                         chunk = chunk_bytes.decode("utf-8").removeprefix(
                             "data: ")
+                        #print(chunk)
                         if chunk == "[DONE]":
                             latency = time.perf_counter() - st
                             output.latency = latency
@@ -414,6 +415,7 @@ async def async_request_openai_chat_completions(
                     if choices:
                         message = choices[0].get("message", {})
                         content = message.get("content")
+                        #print(content)
                         if content:
                             generated_text = content
                             output.ttft = timestamp - st
@@ -422,6 +424,7 @@ async def async_request_openai_chat_completions(
                             #output.output_tokens = data.get("usage", {}).get("completion_tokens", 0)
                             # Get token counts from usage information
                             if "usage" in data:
+                                #print(data)
                                 output.output_tokens = data["usage"].get("completion_tokens", 0)
                                 if "prompt_tokens" in data["usage"]:
                                     output.prompt_len = data["usage"]["prompt_tokens"]

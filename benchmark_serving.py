@@ -359,8 +359,11 @@ async def sample_random_requests_with_engine_tokenization(
     request_func = ASYNC_REQUEST_FUNCS[backend]
     
     # Generate a base prompt that we'll use for all requests
-    base_prompt = "<a>"
-    
+    #base_prompt = "ace"
+    #base_prompt = "唱個歌"
+    base_prompt = "can you sing a song?"
+    #base_prompt = "How are u?"
+    #base_prompt = "在日文中，儘管「行く」跟「来る」是很入門的動詞"
     # Send a test request to get the token count for the base prompt
     # We'll use non-streaming mode to get the token count from the usage information
     test_input = RequestFuncInput(
@@ -368,11 +371,12 @@ async def sample_random_requests_with_engine_tokenization(
         prompt=base_prompt,
         api_url=api_url,
         prompt_len=0,  # We don't know the actual prompt_len yet
-        output_len=1,  # Only need to generate one token
+        output_len=400,  # Only need to generate one token
         logprobs=None,
         best_of=1,
-        ignore_eos=True,
+        #ignore_eos=True,
         stream=False  # Use non-streaming mode to get usage information
+        #stream=True  # Use non-streaming mode to get usage information
     )
     
     # Send the test request
@@ -423,8 +427,11 @@ async def sample_random_requests_with_engine_tokenization(
         else:
             # Fall back to local tokenizer
             current_token_count = len(tokenizer(current_prompt).input_ids)
-        
+        print(current_token_count)
+        print(input_len)
+
         if current_token_count >= input_len:
+            print("current_token_count >= input_len")
             break
     
     # Fine-tune the length with binary search to get exactly the target length
@@ -442,7 +449,10 @@ async def sample_random_requests_with_engine_tokenization(
                 current_token_count = test_output.prompt_len
             else:
                 current_token_count = len(tokenizer(current_prompt).input_ids)
-            
+           
+            if current_token_count == input_len:
+                break
+
             if current_token_count < input_len:
                 min_repeats = current_repeats
             else:
@@ -711,7 +721,10 @@ def calculate_metrics(
             #output_len = len(
             #    tokenizer(outputs[i].generated_text,
             #              add_special_tokens=False).input_ids)
-            output_len = outputs[i].output_tokens
+            if hasattr(outputs[i], "output_tokens"):
+                output_len = outputs[i].output_tokens
+            else:
+                output_len = input_requests[i][2]
             #print(output_len)
             actual_output_lens.append(output_len)
             total_input += input_requests[i][1]
