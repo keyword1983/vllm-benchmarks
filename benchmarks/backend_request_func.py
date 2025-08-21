@@ -287,6 +287,7 @@ async def async_request_openai_completions(
             "max_tokens": request_func_input.output_len,
             "logprobs": request_func_input.logprobs,
             "stream": True,
+            "ignore_eos": True,
             "stream_options": {
                 "include_usage": True,
             },
@@ -341,7 +342,11 @@ async def async_request_openai_completions(
                                 most_recent_timestamp = timestamp
                                 generated_text += text or ""
                             if usage := data.get("usage"):
+                                print(usage)
+                                output.prompt_len = usage.get("prompt_tokens")
+                                #print(f"Got actual prompt token count from API: {output.prompt_len}")
                                 output.output_tokens = usage.get("completion_tokens")
+                                #print(output.output_tokens)
                     if first_chunk_received:
                         output.success = True
                     else:
@@ -401,6 +406,8 @@ async def async_request_openai_chat_completions(
             "stream_options": {
                 "include_usage": True,
             },
+            "ignore_eos": True,
+            "stop": None,
         }
         if request_func_input.ignore_eos:
             payload["ignore_eos"] = request_func_input.ignore_eos
@@ -443,6 +450,7 @@ async def async_request_openai_chat_completions(
 
                             if choices := data.get("choices"):
                                 content = choices[0]["delta"].get("content")
+                                #print(content)
                                 # First token
                                 if ttft == 0.0:
                                     ttft = timestamp - st
@@ -455,6 +463,10 @@ async def async_request_openai_chat_completions(
                                 generated_text += content or ""
                             elif usage := data.get("usage"):
                                 output.output_tokens = usage.get("completion_tokens")
+                                print(output.output_tokens)
+                                if "prompt_tokens" in data["usage"]:
+                                    output.prompt_len = data["usage"]["prompt_tokens"]
+                                    print(f"Got actual prompt token count from API: {output.prompt_len}")
 
                             most_recent_timestamp = timestamp
 
