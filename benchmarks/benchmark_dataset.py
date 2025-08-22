@@ -372,6 +372,9 @@ class RandomDataset(BenchmarkDataset):
             else []
         )
 
+        import time
+        seed_value = int(time.time())
+        random.seed(seed_value) 
         # New sampling logic: [X * (1 - b), X * (1 + b)]
         input_low = int(real_input_len * (1 - range_ratio))
         input_high = int(real_input_len * (1 + range_ratio))
@@ -396,6 +399,7 @@ class RandomDataset(BenchmarkDataset):
 
 
         requests = []
+        used_prompts = set()
         for i in range(num_requests):
 
 
@@ -422,7 +426,13 @@ class RandomDataset(BenchmarkDataset):
             prompt = tokenizer.decode(re_encoded_sequence)
             total_input_len = len(re_encoded_sequence)
             
-            prompt = " ".join(random.choice(char_list) for _ in range(input_lens[i]))
+            while True:
+                # 每個 char 後面加一個空格
+                prompt = " ".join(random.choice(char_list) for _ in range(input_lens[i]))
+                if prompt not in used_prompts:
+                    used_prompts.add(prompt)
+                    break
+            #prompt = " ".join(random.choice(char_list) for _ in range(input_lens[i]))
             total_input_len = prefix_len + int(input_lens[i])
             requests.append(
                 SampleRequest(
