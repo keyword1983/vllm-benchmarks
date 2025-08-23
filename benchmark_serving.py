@@ -320,16 +320,34 @@ def sample_random_requests(
         size=num_prompts,
     )
     offsets = np.random.randint(0, tokenizer.vocab_size, size=num_prompts)
+    
+    # 準備 A-Z + a-z 共 52 個字母
+    char_list = [chr(i) for i in range(ord('A'), ord('Z')+1)] + \
+            [chr(i) for i in range(ord('a'), ord('z')+1)]
+
     input_requests = []
+    used_prompts = set()
+
     for i in range(num_prompts):
         #prompt = tokenizer.decode(prefix_token_ids +
         #                          [(offsets[i] + i + j) % tokenizer.vocab_size
         #                           for j in range(input_lens[i])])
-        prompt = tokenizer.decode(offsets[i])
-        prompt = prompt * (input_len-1)
-        input_requests.append((prompt, int(prefix_len + input_lens[i]),
-                               int(output_lens[i]), None))
+        #prompt = tokenizer.decode(offsets[i])
+        #prompt = prompt * (input_len-1)
+        
+        #input_requests.append((prompt, int(prefix_len + input_lens[i]),
+        #                       int(output_lens[i]), None))
 
+        while True:
+            # 每個 char 後面加一個空格
+            prompt = " ".join(random.choice(char_list) for _ in range(input_lens[i]))
+            if prompt not in used_prompts:
+                used_prompts.add(prompt)
+                break
+        input_requests.append((prompt,
+                           int(prefix_len + input_lens[i]),
+                           int(output_lens[i]),
+                           None))
     return input_requests
 
 
