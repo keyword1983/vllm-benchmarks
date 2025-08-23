@@ -88,6 +88,7 @@ NUM_PROMPTS_LIST=(1 5 10)
 # 循环执行三次，每次使用不同的 --num-prompts
 for NUM_PROMPTS in "${NUM_PROMPTS_LIST[@]}"; do
 
+    SEED=$(($(date +%s%N) % 4294967295))
     RESULT_FILE="${MODEL_NAME}_${RANDOM_INPUT_LEN}-${RANDOM_OUTPUT_LEN}_${NUM_PROMPTS}.json"
     echo "Running benchmark with --num-prompts=$NUM_PROMPTS"
     python3 benchmark_serving.py --backend "$BACKEND" \
@@ -104,7 +105,8 @@ for NUM_PROMPTS in "${NUM_PROMPTS_LIST[@]}"; do
                                  --random-output-len "$RANDOM_OUTPUT_LEN" \
     				 --save-result \
 				 --result-dir "output" \
-				 --result-filename "$RESULT_FILE"
+				 --result-filename "$RESULT_FILE" \
+				 --seed "$SEED"
 done
 
 NUM_PROMPTS_LIST=(8 16 32 64 128)
@@ -112,7 +114,8 @@ RANDOM_INPUT_LEN="200"
 RANDOM_OUTPUT_LEN="250"
 # 循环执行三次，每次使用不同的 --num-prompts
 for NUM_PROMPTS in "${NUM_PROMPTS_LIST[@]}"; do
-	
+
+    SEED=$(($(date +%s%N) % 4294967295))
     RESULT_FILE="${MODEL_NAME}_${RANDOM_INPUT_LEN}-${RANDOM_OUTPUT_LEN}_${NUM_PROMPTS}.json"
     echo "Running benchmark with --num-prompts=$NUM_PROMPTS"
     python3 benchmark_serving.py --backend "$BACKEND" \
@@ -129,7 +132,8 @@ for NUM_PROMPTS in "${NUM_PROMPTS_LIST[@]}"; do
                                  --random-output-len "$RANDOM_OUTPUT_LEN" \
 				 --save-result \
 				 --result-dir "output" \
-				 --result-filename "$RESULT_FILE"
+				 --result-filename "$RESULT_FILE" \
+				 --seed "$SEED"
 done
 
 NUM_PROMPTS_LIST=(1 8 16 32)
@@ -138,6 +142,7 @@ RANDOM_OUTPUT_LEN="100"
 # 循环执行三次，每次使用不同的 --num-prompts
 for NUM_PROMPTS in "${NUM_PROMPTS_LIST[@]}"; do
 	
+    SEED=$(($(date +%s%N) % 4294967295))
     RESULT_FILE="${MODEL_NAME}_${RANDOM_INPUT_LEN}-${RANDOM_OUTPUT_LEN}_${NUM_PROMPTS}.json"
     echo "Running benchmark with --num-prompts=$NUM_PROMPTS"
     python3 benchmark_serving.py --backend "$BACKEND" \
@@ -154,7 +159,8 @@ for NUM_PROMPTS in "${NUM_PROMPTS_LIST[@]}"; do
                                  --random-output-len "$RANDOM_OUTPUT_LEN" \
 				 --save-result \
 				 --result-dir "output" \
-				 --result-filename "$RESULT_FILE"
+				 --result-filename "$RESULT_FILE" \
+				 --seed "$SEED"
 done
 
 
